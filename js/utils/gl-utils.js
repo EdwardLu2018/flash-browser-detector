@@ -122,8 +122,7 @@ export class GLUtils {
     }
 
     static readPixels(gl, width, height, buffer) {
-        gl.readPixels(
-            0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
+        gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
     }
 
     static readPixelsAsync(gl, pbo, width, height, buffer) {
@@ -142,7 +141,7 @@ export class GLUtils {
             gl, pbo,
             gl.PIXEL_PACK_BUFFER, 0, buffer, 0, 0
         ).catch(err => {
-            throw new IllegalOperationError("Can't read pixels", err);
+            throw new Error("Can't read pixels", err);
         });
     }
 
@@ -159,7 +158,7 @@ export class GLUtils {
             gl.bindBuffer(target, null);
             return 0; // disable timers
         }).catch(err => {
-            throw new IllegalOperationError(`Can't getBufferSubDataAsync(): error in clientWaitAsync()`, err);
+            throw new Error(`Can't getBufferSubDataAsync(): error in clientWaitAsync()`, err);
         }).finally(() => {
             gl.deleteSync(sync);
         });

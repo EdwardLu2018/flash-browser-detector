@@ -17,7 +17,6 @@ export class FlashDetector {
         this.sourceWidth = this.source.options.width;
         this.sourceHeight = this.source.options.height;
 
-        this.imageData = null;
         this.imageDecimate = 1.0;
 
         this.numBadFrames = 0;
@@ -140,10 +139,11 @@ export class FlashDetector {
         // console.log(start - this.prev, this.timer.getError());
         this.prev = start;
 
-        this.imageData = await this.preprocessor.getPixels();
-        this.worker.postMessage({
-            type: "process",
-            imagedata: this.imageData
+        this.preprocessor.getPixels().then((imageData) => {
+            this.worker.postMessage({
+                type: "process",
+                imagedata: imageData
+            });
         });
 
         const end = Date.now();
@@ -151,12 +151,6 @@ export class FlashDetector {
         if (this.options.printPerformance) {
             console.log("[performance]", "Get Pixels:", end-start);
         }
-
-        const tickEvent = new CustomEvent(
-            "onFlashTick",
-            {detail: {}}
-        );
-        window.dispatchEvent(tickEvent);
 
         if (this.options.decimateImage) {
             if (end-start > this.fpsInterval) {
