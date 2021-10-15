@@ -1,5 +1,6 @@
-import GlitterWASM from "../build/glitter_wasm";
-export class GlitterModule {
+import FlashWASM from "../build/flash_wasm";
+
+export class FlashModule {
     constructor(codes, width, height, options, callback) {
         this.width = width;
         this.height = height;
@@ -16,8 +17,8 @@ export class GlitterModule {
         this.codes = codes;
 
         let _this = this;
-        GlitterWASM().then(function(Module) {
-            console.log("GLITTER WASM module loaded.");
+        FlashWASM().then(function(Module) {
+            console.log("FLASH WASM module loaded.");
             _this.onWasmInit(Module, options);
             if (callback) callback();
         });
@@ -29,7 +30,7 @@ export class GlitterModule {
         this._init = this._Module.cwrap("init", "number", ["number"]);
         this._add_code = this._Module.cwrap("add_code", "number", ["number"]);
 
-        this._set_detector_options = this._Module.cwrap("set_detector_options", "number", ["number", "number"]);
+        this._set_detector_options = this._Module.cwrap("set_detector_options", "number", ["number", "number", "number", "number", "number", "number"]);
         this._set_quad_decimate = this._Module.cwrap("set_quad_decimate", "number", ["number"]);
 
         this._save_grayscale = this._Module.cwrap("save_grayscale", "number", ["number", "number", "number", "number"]);
@@ -49,7 +50,7 @@ export class GlitterModule {
         this.tags = [];
 
         let _this = this;
-        this.scope.addEventListener("onGlitterTagFound", (e) => {
+        this.scope.addEventListener("onFlashTagFound", (e) => {
             _this.tags.push(e.detail.tag);
         });
     }
@@ -76,7 +77,11 @@ export class GlitterModule {
     setDetectorOptions(options) {
         this._set_detector_options(
             options.rangeThreshold,
-            options.minWhiteBlackDiff
+            options.minWhiteBlackDiff,
+            options.ttlFrames,
+            options.thresDistShape,
+            options.thresDistShapeTTL,
+            options.thresDistCenter
         );
     }
 

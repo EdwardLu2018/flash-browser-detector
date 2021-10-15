@@ -9,8 +9,8 @@ flashSource.setOptions({
     // height: 3024,
     // width: 1920,
     // height: 1080,
-    width: 1280,
-    height: 720,
+    // width: 1280,
+    // height: 720,
 });
 
 var overlayCanvas = document.createElement("canvas");
@@ -60,7 +60,8 @@ function updateInfo() {
     var info = document.getElementById("info");
     info.style.zIndex = "1";
     info.innerText = "Detecting Codes:\n";
-    for (code of this.codes) {
+    for(var i = 0; i < this.codes.length; i++) {
+        var code = this.codes[i];
         info.innerText += `${Flash.Utils.dec2bin(code)} (${code})\n`;
     }
 }
@@ -79,8 +80,7 @@ window.addEventListener("onFlashInit", (e) => {
 });
 
 window.addEventListener("onFlashTagsFound", (e) => {
-    const tags = e.detail.tags;
-    drawTags(tags);
+    drawTags(e.detail.tags);
     stats.update();
 });
 

@@ -1,5 +1,5 @@
-#ifndef _BIT_MATCH_H_
-#define _BIT_MATCH_H_
+#ifndef _DECODER_H_
+#define _DECODER_H_
 
 #include "apriltag.h"
 #include "common/zarray.h"
@@ -19,8 +19,12 @@
 
 typedef struct {
     uint8_t code;
+    uint16_t doubled_code;
 } glitter_code_t;
 
-int decode(lightanchor_detector_t *ld, lightanchor_t *candidate_curr);
+// size_t hamming_dist(size_t a, size_t b);
+uint16_t double_bits(uint8_t bits);
+uint8_t undouble_bits(uint16_t bits);
+int lightanchor_decode(lightanchor_detector_t *ld, lightanchor_t *candidate_curr);
 
 #endif

@@ -3,11 +3,11 @@ import {Timer} from "./timer";
 import {Utils} from "./utils/utils";
 // import {DeviceIMU} from "./imu";
 import {Preprocessor} from "./preprocessor";
-import Worker from "./glitter.worker";
+import Worker from "./flash.worker";
 
 var BAD_FRAMES_BEFORE_DECIMATE = 20;
 
-export class GlitterDetector {
+export class FlashDetector {
     constructor(codes, targetFps, source, options) {
         this.codes = codes;
         this.targetFps = targetFps; // FPS
@@ -17,9 +17,7 @@ export class GlitterDetector {
         this.sourceWidth = this.source.options.width;
         this.sourceHeight = this.source.options.height;
 
-        this.imageData = null;
         this.imageDecimate = 1.0;
-        this.frames = 0;
 
         this.numBadFrames = 0;
 
@@ -29,16 +27,19 @@ export class GlitterDetector {
             maxImageDecimationFactor: 3,
             imageDecimationDelta: 0.2,
             rangeThreshold: 20,
-            quadSigma: 0.8,
-            minWhiteBlackDiff: 50,
+            quadSigma: 1.0,
+            minWhiteBlackDiff: 100,
+            ttlFrames: 8,
+            thresDistShape: 50.0,
+            thresDistShapeTTL: 20.0,
+            thresDistCenter: 25.0,
         }
         this.setOptions(options);
 
         // this.imu = new DeviceIMU();
         this.preprocessor = new Preprocessor(this.sourceWidth, this.sourceHeight);
         this.preprocessor.setKernelSigma(this.options.quadSigma);
-        this.worker1 = new Worker();
-        this.worker2 = new Worker();
+        this.worker = new Worker();
     }
 
     init() {
@@ -60,29 +61,23 @@ export class GlitterDetector {
             _this.timer.run();
         }
 
-        const initMsg = {
+        this.worker.postMessage({
             type: "init",
             codes: this.codes,
             width: this.sourceWidth,
             height: this.sourceHeight,
             targetFps: this.targetFps,
             options: this.options
-        };
-        initMsg.sendEvent = true;
-        this.worker1.postMessage(initMsg);
+        });
 
-        initMsg.sendEvent = false;
-        this.worker2.postMessage(initMsg);
-
-        this.worker1.onmessage =
-        this.worker2.onmessage = (e) => {
-            const msg = e.data;
+        this.worker.onmessage = (e) => {
+            const msg = e.data
             switch (msg.type) {
                 case "loaded": {
-                    startTick();
                     // this.imu.init();
+                    startTick();
                     const initEvent = new CustomEvent(
-                        "onGlitterInit",
+                        "onFlashInit",
                         {detail: {source: source}}
                     );
                     window.dispatchEvent(initEvent);
@@ -90,7 +85,7 @@ export class GlitterDetector {
                 }
                 case "result": {
                     const tagEvent = new CustomEvent(
-                        "onGlitterTagsFound",
+                        "onFlashTagsFound",
                         {detail: {tags: msg.tags}}
                     );
                     window.dispatchEvent(tagEvent);
@@ -111,17 +106,15 @@ export class GlitterDetector {
         var height = this.sourceHeight / this.imageDecimate;
 
         this.preprocessor.resize(width, height);
-        const resizeMsg = {
+        this.worker.postMessage({
             type: "resize",
             width: width,
             height: height,
             decimate: this.imageDecimate,
-        };
-        this.worker1.postMessage(resizeMsg);
-        this.worker2.postMessage(resizeMsg);
+        });
 
         const calibrateEvent = new CustomEvent(
-                "onGlitterCalibrate",
+                "onFlashCalibrate",
                 {detail: {decimationFactor: this.imageDecimate}}
             );
         window.dispatchEvent(calibrateEvent);
@@ -135,29 +128,22 @@ export class GlitterDetector {
     }
 
     addCode(code) {
-        const addCodeMsg = {
+        this.worker.postMessage({
             type: "add code",
             code: code
-        };
-        this.worker1.postMessage(addCodeMsg);
-        this.worker2.postMessage(addCodeMsg);
+        });
     }
 
-    tick() {
-        this.frames++;
+    async tick() {
         const start = Date.now();
-        // console.log(start - this.prev);
+        // console.log(start - this.prev, this.timer.getError());
         this.prev = start;
 
-        this.imageData = this.preprocessor.getPixels();
-
-        let worker = this.worker1;
-        if (this.frames % 2 == 0) {
-            worker = this.worker2;
-        }
-        worker.postMessage({
-            type: "process",
-            imagedata: this.imageData
+        this.preprocessor.getPixels().then((imageData) => {
+            this.worker.postMessage({
+                type: "process",
+                imagedata: imageData
+            });
         });
 
         const end = Date.now();
@@ -165,12 +151,6 @@ export class GlitterDetector {
         if (this.options.printPerformance) {
             console.log("[performance]", "Get Pixels:", end-start);
         }
-
-        const tickEvent = new CustomEvent(
-            "onGlitterTick",
-            {detail: {}}
-        );
-        window.dispatchEvent(tickEvent);
 
         if (this.options.decimateImage) {
             if (end-start > this.fpsInterval) {

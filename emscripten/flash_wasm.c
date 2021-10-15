@@ -8,6 +8,7 @@
 #include <emscripten/emscripten.h>
 
 #include "apriltag.h"
+#include "apriltag_pose.h"
 #include "tag36h11.h"
 
 #include "common/getopt.h"
@@ -19,9 +20,12 @@
 #include "lightanchor.h"
 #include "lightanchor_detector.h"
 
-apriltag_family_t *lf = NULL;
-apriltag_detector_t *td = NULL;
-lightanchor_detector_t *ld = NULL;
+// defaults set for 2020 ipad, with 1280x720 images
+// static apriltag_detection_info_t g_det_pose_info = {NULL, 0.15, 636.9118, 360.5100, 997.2827, 997.2827};
+
+static apriltag_family_t *lf = NULL;
+static apriltag_detector_t *td = NULL;
+static lightanchor_detector_t *ld = NULL;
 
 EMSCRIPTEN_KEEPALIVE
 int init()
@@ -43,8 +47,8 @@ int init()
     td->nthreads = 1;
     td->quad_decimate = 1.0;
 
-    td->qtp.max_nmaxima = 8;
-    td->qtp.min_cluster_pixels = 1;
+    td->qtp.max_nmaxima = 5;
+    td->qtp.min_cluster_pixels = 0;
 
     td->qtp.max_line_fit_mse = 10.0;
     td->qtp.cos_critical_rad = cos(10 * M_PI / 180);
@@ -53,8 +57,13 @@ int init()
     td->refine_edges = 1;
     td->decode_sharpening = 0.25;
 
-
     td->debug = 0;
+
+    ld->ttl_frames = 8;
+
+    ld->thres_dist_shape = 50.0;
+    ld->thres_dist_shape_ttl = 20.0;
+    ld->thres_dist_center = 25.0;
 
     return 0;
 }
@@ -66,10 +75,15 @@ int add_code(char code)
 }
 
 EMSCRIPTEN_KEEPALIVE
-int set_detector_options(int range_thres, int min_white_black_diff)
+int set_detector_options(int range_thres, int min_white_black_diff, int ttl_frames,
+                        double thres_dist_shape, double thres_dist_shape_ttl, double thres_dist_center)
 {
     ld->range_thres = range_thres;
     td->qtp.min_white_black_diff = min_white_black_diff;
+    ld->ttl_frames = ttl_frames;
+    ld->thres_dist_shape = thres_dist_shape;
+    ld->thres_dist_shape_ttl = thres_dist_shape_ttl;
+    ld->thres_dist_center = thres_dist_center;
     return 0;
 }
 
@@ -129,7 +143,7 @@ int detect_tags(uint8_t gray[], int cols, int rows)
             la->c[1] = (la->c[1] - 0.5) * td->quad_decimate + 0.5;
         }
 
-        EM_ASM_({
+        EM_ASM_INT({
             var $a = arguments;
             var i = 0;
 
@@ -164,7 +178,7 @@ int detect_tags(uint8_t gray[], int cols, int rows)
             center["y"] = $a[i++];
             tag["center"] = center;
 
-            const tagEvent = new CustomEvent("onGlitterTagFound", {detail: {tag: tag}});
+            const tagEvent = new CustomEvent("onFlashTagFound", {detail: {tag: tag}});
             var scope;
             if ('function' === typeof importScripts)
                 scope = self;
@@ -184,7 +198,18 @@ int detect_tags(uint8_t gray[], int cols, int rows)
             la->c[0],
             la->c[1]
         );
+
+        // apriltag_detection_t det;
+        // det.H = matd_copy(la->H);
+        // memcpy(det.c, la->c, sizeof(det.c));
+        // memcpy(det.p, la->p, sizeof(det.p));
+        // g_det_pose_info.det = &det;
+
+        // double err1, err2;
+        // apriltag_pose_t pose1, pose2;
+        // estimate_tag_pose_orthogonal_iteration(&g_det_pose_info, &err1, &pose1, &err2, &pose2, 50);
     }
+
     lightanchors_destroy(lightanchors);
 
     return sz;
