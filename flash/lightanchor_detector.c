@@ -70,7 +70,6 @@ int lightanchor_detector_add_code(lightanchor_detector_t *ld, char code)
 {
     glitter_code_t glitter_code;
     glitter_code.code = code;
-    glitter_code.doubled_code = double_bits(code);
 
     zarray_add(ld->codes, &glitter_code);
 

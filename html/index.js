@@ -1,5 +1,5 @@
 var codes = [0b10101010, 0b10011010, 0b10100011];
-var targetFps = 30;
+var targetFps = 60;
 
 var stats = null;
 

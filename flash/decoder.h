@@ -19,7 +19,6 @@
 
 typedef struct {
     uint8_t code;
-    uint16_t doubled_code;
 } glitter_code_t;
 
 // size_t hamming_dist(size_t a, size_t b);

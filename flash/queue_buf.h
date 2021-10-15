@@ -1,7 +1,7 @@
 #ifndef _QUEUE_BUF_H_
 #define _QUEUE_BUF_H_
 
-#define BUF_SIZE    16
+#define BUF_SIZE    8
 
 struct queue_buf {
     int idx;

@@ -19,6 +19,7 @@ export class FlashDetector {
 
         this.imageDecimate = 1.0;
 
+        this.count = 0;
         this.numBadFrames = 0;
 
         this.options = {
@@ -39,7 +40,7 @@ export class FlashDetector {
         // this.imu = new DeviceIMU();
         this.preprocessor = new Preprocessor(this.sourceWidth, this.sourceHeight);
         this.preprocessor.setKernelSigma(this.options.quadSigma);
-        this.worker = new Worker();
+        this.workers = [new Worker(), new Worker()]
     }
 
     init() {
@@ -61,39 +62,42 @@ export class FlashDetector {
             _this.timer.run();
         }
 
-        this.worker.postMessage({
-            type: "init",
-            codes: this.codes,
-            width: this.sourceWidth,
-            height: this.sourceHeight,
-            targetFps: this.targetFps,
-            options: this.options
-        });
+        for (let i = 0; i < this.workers.length; i++) {
+            this.workers[i].postMessage({
+                type: "init",
+                codes: this.codes,
+                width: this.sourceWidth,
+                height: this.sourceHeight,
+                targetFps: this.targetFps,
+                options: this.options
+            });
 
-        this.worker.onmessage = (e) => {
-            const msg = e.data
-            switch (msg.type) {
-                case "loaded": {
-                    // this.imu.init();
-                    startTick();
-                    const initEvent = new CustomEvent(
-                        "onFlashInit",
-                        {detail: {source: source}}
-                    );
-                    window.dispatchEvent(initEvent);
-                    break;
-                }
-                case "result": {
-                    const tagEvent = new CustomEvent(
-                        "onFlashTagsFound",
-                        {detail: {tags: msg.tags}}
-                    );
-                    window.dispatchEvent(tagEvent);
-                    break;
-                }
-                case "resize": {
-                    this.decimate();
-                    break;
+            this.workers[i].onmessage = (e) => {
+                const msg = e.data
+                switch (msg.type) {
+                    case "loaded": {
+                        if (i != 0) break;
+                        // this.imu.init();
+                        startTick();
+                        const initEvent = new CustomEvent(
+                            "onFlashInit",
+                            {detail: {source: source}}
+                        );
+                        window.dispatchEvent(initEvent);
+                        break;
+                    }
+                    case "result": {
+                        const tagEvent = new CustomEvent(
+                            "onFlashTagsFound",
+                            {detail: {tags: msg.tags}}
+                        );
+                        window.dispatchEvent(tagEvent);
+                        break;
+                    }
+                    case "resize": {
+                        this.decimate();
+                        break;
+                    }
                 }
             }
         }
@@ -106,12 +110,14 @@ export class FlashDetector {
         var height = this.sourceHeight / this.imageDecimate;
 
         this.preprocessor.resize(width, height);
-        this.worker.postMessage({
-            type: "resize",
-            width: width,
-            height: height,
-            decimate: this.imageDecimate,
-        });
+        for (let i = 0; i < this.workers.length; i++) {
+            this.workers[i].postMessage({
+                type: "resize",
+                width: width,
+                height: height,
+                decimate: this.imageDecimate,
+            });
+        }
 
         const calibrateEvent = new CustomEvent(
                 "onFlashCalibrate",
@@ -128,10 +134,12 @@ export class FlashDetector {
     }
 
     addCode(code) {
-        this.worker.postMessage({
-            type: "add code",
-            code: code
-        });
+        for (let i = 0; i < this.workers.length; i++) {
+            this.workers[i].postMessage({
+                type: "add code",
+                code: code
+            });
+        }
     }
 
     async tick() {
@@ -140,10 +148,11 @@ export class FlashDetector {
         this.prev = start;
 
         this.preprocessor.getPixels().then((imageData) => {
-            this.worker.postMessage({
+            this.workers[this.count % 2].postMessage({
                 type: "process",
                 imagedata: imageData
             });
+            this.count++;
         });
 
         const end = Date.now();
