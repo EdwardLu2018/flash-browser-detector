@@ -3,11 +3,11 @@ import {Timer} from "./timer";
 import {Utils} from "./utils/utils";
 // import {DeviceIMU} from "./imu";
 import {Preprocessor} from "./preprocessor";
-import Worker from "./glitter.worker";
+import Worker from "./flash.worker";
 
 var BAD_FRAMES_BEFORE_DECIMATE = 20;
 
-export class GlitterDetector {
+export class FlashDetector {
     constructor(codes, targetFps, source, options) {
         this.codes = codes;
         this.targetFps = targetFps; // FPS
@@ -17,20 +17,22 @@ export class GlitterDetector {
         this.sourceWidth = this.source.options.width;
         this.sourceHeight = this.source.options.height;
 
-        this.imageData = null;
         this.imageDecimate = 1.0;
 
         this.numBadFrames = 0;
 
         this.options = {
             printPerformance: false,
-            decimateImage: true,
+            decimateImage: false,
             maxImageDecimationFactor: 3,
             imageDecimationDelta: 0.2,
             rangeThreshold: 20,
             quadSigma: 1.0,
-            refineEdges: true,
-            minWhiteBlackDiff: 50,
+            minWhiteBlackDiff: 100,
+            ttlFrames: 8,
+            thresDistShape: 50.0,
+            thresDistShapeTTL: 20.0,
+            thresDistCenter: 25.0,
         }
         this.setOptions(options);
 
@@ -53,6 +55,11 @@ export class GlitterDetector {
 
     onInit(source) {
         let _this = this;
+        function startTick() {
+            _this.prev = Date.now();
+            _this.timer = new Timer(_this.tick.bind(_this), _this.fpsInterval);
+            _this.timer.run();
+        }
 
         this.worker.postMessage({
             type: "init",
@@ -68,24 +75,9 @@ export class GlitterDetector {
             switch (msg.type) {
                 case "loaded": {
                     // this.imu.init();
-                    const start = Date.now();
-                    // console.log(start - this.prev, this.timer.getError());
-                    this.prev = start;
-
-                    this.imageData = this.preprocessor.getPixels();
-                    this.worker.postMessage({
-                        type: "process",
-                        imagedata: this.imageData
-                    });
-
-                    const end = Date.now();
-
-                    if (this.options.printPerformance) {
-                        console.log("[performance]", "Get Pixels:", end-start);
-                    }
-
+                    startTick();
                     const initEvent = new CustomEvent(
-                        "onGlitterInit",
+                        "onFlashInit",
                         {detail: {source: source}}
                     );
                     window.dispatchEvent(initEvent);
@@ -93,21 +85,10 @@ export class GlitterDetector {
                 }
                 case "result": {
                     const tagEvent = new CustomEvent(
-                        "onGlitterTagsFound",
+                        "onFlashTagsFound",
                         {detail: {tags: msg.tags}}
                     );
                     window.dispatchEvent(tagEvent);
-                    this.imageData = this.preprocessor.getPixels();
-                    this.worker.postMessage({
-                        type: "process",
-                        imagedata: this.imageData
-                    });
-
-                    const end = Date.now();
-
-                    if (this.options.printPerformance) {
-                        console.log("[performance]", "Get Pixels:", end-start);
-                    }
                     break;
                 }
                 case "resize": {
@@ -133,7 +114,7 @@ export class GlitterDetector {
         });
 
         const calibrateEvent = new CustomEvent(
-                "onGlitterCalibrate",
+                "onFlashCalibrate",
                 {detail: {decimationFactor: this.imageDecimate}}
             );
         window.dispatchEvent(calibrateEvent);
@@ -151,5 +132,44 @@ export class GlitterDetector {
             type: "add code",
             code: code
         });
+    }
+
+    tick() {
+        const start = Date.now();
+        // console.log(start - this.prev, this.timer.getError());
+        this.prev = start;
+
+        this.preprocessor.getPixels().then((imageData) => {
+            this.worker.postMessage({
+                type: "process",
+                imagedata: imageData
+            });
+        });
+
+        const end = Date.now();
+
+        if (this.options.printPerformance) {
+            console.log("[performance]", "Get Pixels:", end-start);
+        }
+
+        const tickEvent = new CustomEvent(
+            "onFlashTick",
+            {detail: {}}
+        );
+        window.dispatchEvent(tickEvent);
+
+        if (this.options.decimateImage) {
+            if (end-start > this.fpsInterval) {
+                this.numBadFrames++;
+                if (this.numBadFrames > BAD_FRAMES_BEFORE_DECIMATE &&
+                    this.imageDecimate < this.options.maxImageDecimationFactor) {
+                    this.numBadFrames = 0;
+                    this.decimate();
+                }
+            }
+            else {
+                this.numBadFrames = 0;
+            }
+        }
     }
 }
