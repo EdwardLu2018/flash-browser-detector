@@ -213,33 +213,38 @@ int detect_tags(uint8_t gray[], int cols, int rows)
         pose_info.det = det;
         pose_info.tagsize = 0.15;
 
-        double err1, err2;
-        apriltag_pose_t pose1, pose2;
+        apriltag_pose_t pose;
         // EM_ASM({console.time("pose estimation")});
-        estimate_tag_pose_orthogonal_iteration(&pose_info, &err1, &pose1, &err2, &pose2, 50);
+        double error = estimate_tag_pose(&pose_info, &pose);
         // EM_ASM({console.time("pose estimation")});
 
         EM_ASM_({
             var $a = arguments;
             var i = 0;
 
-            const rot = [];
-            rot[0] = $a[i++];
-            rot[1] = $a[i++];
-            rot[2] = $a[i++];
-            rot[3] = $a[i++];
-            rot[4] = $a[i++];
-            rot[5] = $a[i++];
-            rot[6] = $a[i++];
-            rot[7] = $a[i++];
-            rot[8] = $a[i++];
+            const pose = {};
 
-            const trans = [];
-            trans[0] = $a[i++];
-            trans[1] = $a[i++];
-            trans[2] = $a[i++];
+            pose["error"] = $a[i++];
 
-            const tagEvent = new CustomEvent("onFlashPoseFound", {detail: {pose: {R: rot, T: trans}}});
+            const R = [];
+            R[0] = $a[i++];
+            R[1] = $a[i++];
+            R[2] = $a[i++];
+            R[3] = $a[i++];
+            R[4] = $a[i++];
+            R[5] = $a[i++];
+            R[6] = $a[i++];
+            R[7] = $a[i++];
+            R[8] = $a[i++];
+            pose["R"] = R;
+
+            const t = [];
+            t[0] = $a[i++];
+            t[1] = $a[i++];
+            t[2] = $a[i++];
+            pose["t"] = t;
+
+            const tagEvent = new CustomEvent("onFlashPoseFound", {detail: {pose: pose}});
             var scope;
             if ('function' === typeof importScripts)
                 scope = self;
@@ -247,18 +252,19 @@ int detect_tags(uint8_t gray[], int cols, int rows)
                 scope = window;
             scope.dispatchEvent(tagEvent);
         },
-            MATD_EL(pose1.R,0,0),
-            MATD_EL(pose1.R,0,1),
-            MATD_EL(pose1.R,0,2),
-            MATD_EL(pose1.R,1,0),
-            MATD_EL(pose1.R,1,1),
-            MATD_EL(pose1.R,1,2),
-            MATD_EL(pose1.R,2,0),
-            MATD_EL(pose1.R,2,1),
-            MATD_EL(pose1.R,2,2),
-            MATD_EL(pose1.t,0,0),
-            MATD_EL(pose1.t,0,1),
-            MATD_EL(pose1.t,0,2)
+            error,
+            matd_get(pose.R,0,0),
+            matd_get(pose.R,1,0),
+            matd_get(pose.R,2,0),
+            matd_get(pose.R,0,1),
+            matd_get(pose.R,1,1),
+            matd_get(pose.R,2,1),
+            matd_get(pose.R,0,2),
+            matd_get(pose.R,1,2),
+            matd_get(pose.R,2,2),
+            matd_get(pose.t,0,0),
+            matd_get(pose.t,1,0),
+            matd_get(pose.t,2,0)
         );
     }
 

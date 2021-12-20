@@ -15,9 +15,3 @@ body {
     margin: 0px;
     border-radius: 5px;
 }
-
-.arElem {
-    width: 2px;
-    height: 2px;
-    z-index: 9999;
-}
