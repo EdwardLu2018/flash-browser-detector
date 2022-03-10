@@ -12,8 +12,8 @@ EXAMPLES_DIR		= examples
 EMSCRIPTEN_DIR 		= emscripten
 
 INCLUDE 			= -I$(APRILTAG_DIR)/ -I$(FLASH_DIR)/
-C_FLAGS 			= -g -std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -O3
-CXX_FLAGS			= -g -std=c++11 -Wall -O3
+C_FLAGS 			= -g -std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -O3 -pthread
+CXX_FLAGS			= -g -std=c++11 -Wall -O3 -pthread
 LD_FLAGS 			= -lpthread -lm
 
 WASM_FLAGS			= -Wall -O3
@@ -25,6 +25,7 @@ WASM_LD_FLAGS 		+= -s ENVIRONMENT=worker
 WASM_LD_FLAGS 		+= -s EXPORTED_FUNCTIONS='["_malloc", "_free"]'
 WASM_LD_FLAGS 		+= -s EXPORTED_RUNTIME_METHODS='["cwrap"]'
 WASM_LD_FLAGS 		+= -s SINGLE_FILE=1
+WASM_LD_FLAGS 		+= -s USE_PTHREADS=1
 WASM_LD_FLAGS 		+= -s WASM=1
 WASM_LD_FLAGS 		+= -s --bind
 
