@@ -45,7 +45,7 @@ int init()
     if (ld == nullptr)
         return -1;
 
-    td->nthreads = 1;
+    td->nthreads = 2;
     td->quad_decimate = 1.0;
 
     td->qtp.max_nmaxima = 5;
