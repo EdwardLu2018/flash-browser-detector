@@ -1,5 +1,5 @@
 Module['locateFile'] = function(path, prefix) {
-    if (path.endsWith(".wasm")) {
+    if (path.endsWith(".wasm") || path.endsWith(".worker.js")) {
         let scope;
         if ('function' === typeof importScripts)
             scope = self;
