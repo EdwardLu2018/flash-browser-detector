@@ -12,15 +12,15 @@ EXAMPLES_DIR		= examples
 EMSCRIPTEN_DIR 		= emscripten
 
 INCLUDE 			= -I$(APRILTAG_DIR)/ -I$(FLASH_DIR)/
-C_FLAGS 			= -g -std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -O3
-CXX_FLAGS			= -g -std=c++11 -Wall -O3
-LD_FLAGS 			= -lpthread -lm
+C_FLAGS 			= -g -std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -Os
+CXX_FLAGS			= -g -std=c++11 -Wall -Os
+LD_FLAGS 			= -lm # -lpthread
 
 WASM_FLAGS			= -Wall -O3
 WASM_MODULE_NAME 	= FlashWASM
 WASM_LD_FLAGS 		+= -s 'EXPORT_NAME="$(WASM_MODULE_NAME)"'
 WASM_LD_FLAGS 		+= -s MODULARIZE=1
-WASM_LD_FLAGS 		+= -s ALLOW_MEMORY_GROWTH=1
+WASM_LD_FLAGS 		+= -s TOTAL_MEMORY=$$(( 256 * 1024 * 1024 ))
 WASM_LD_FLAGS 		+= -s ENVIRONMENT=worker
 WASM_LD_FLAGS 		+= -s EXPORTED_FUNCTIONS='["_malloc", "_free"]'
 WASM_LD_FLAGS 		+= -s EXPORTED_RUNTIME_METHODS='["cwrap"]'
